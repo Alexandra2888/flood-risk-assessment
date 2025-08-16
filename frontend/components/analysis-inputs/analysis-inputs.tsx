@@ -12,17 +12,9 @@ import {
   Upload,
   Shield,
 } from "lucide-react";
-import { FloodRiskData } from "@/lib/types";
+import { AnalysisInputsProps, FloodRiskData } from "@/lib/types";
 
-interface AnalysisInputsProps {
-  onAnalysisComplete: (riskData: FloodRiskData, aiAnalysis: string) => void;
-  isLoading: boolean;
-  setIsLoading: (loading: boolean) => void;
-  setAlertMessage: (message: string) => void;
-  setAlertType: (type: "error" | "success" | "info" | "warning") => void;
-  setShowAlert: (show: boolean) => void;
-  onMapUpdate?: (lat: number, lng: number, riskData: FloodRiskData) => void;
-}
+
 
 const AnalysisInputs = ({
   onAnalysisComplete,
@@ -41,6 +33,7 @@ const AnalysisInputs = ({
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   const API_BASE_URL = "http://localhost:8000/api/v1";
 
@@ -221,212 +214,214 @@ const AnalysisInputs = ({
   };
 
   return (
-    <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Shield className="h-5 w-5 text-blue-600" />
-          Analysis Methods
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Tabs
-          value={analysisType}
-          onValueChange={(value) =>
-            setAnalysisType(value as "coordinates" | "image")
-          }
-          className="w-full"
-        >
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger
-              value="coordinates"
-              className="flex items-center gap-2"
+    
+        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-blue-600" />
+              Analysis Methods
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Tabs
+              value={analysisType}
+              onValueChange={(value) =>
+                setAnalysisType(value as "coordinates" | "image")
+              }
+              className="w-full"
             >
-              <MapPin className="h-4 w-4" />
-              Coordinates
-            </TabsTrigger>
-            <TabsTrigger
-              value="image"
-              className="flex items-center gap-2"
-            >
-              <Image className="h-4 w-4" />
-              Image Analysis
-            </TabsTrigger>
-          </TabsList>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger
+                  value="coordinates"
+                  className="flex items-center gap-2"
+                >
+                  <MapPin className="h-4 w-4" />
+                  Coordinates
+                </TabsTrigger>
+                <TabsTrigger
+                  value="image"
+                  className="flex items-center gap-2"
+                >
+                  <Image className="h-4 w-4" />
+                  Image Analysis
+                </TabsTrigger>
+              </TabsList>
 
-          <TabsContent value="coordinates" className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="latitude">Latitude</Label>
-                <Input
-                  id="latitude"
-                  type="number"
-                  step="any"
-                  placeholder="40.7128"
-                  value={inputLat}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    // Allow only numbers, decimal points, and minus signs
-                    if (value === '' || /^-?\d*\.?\d*$/.test(value)) {
-                      setInputLat(value);
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const value = parseFloat(e.target.value);
-                    if (!isNaN(value) && value >= -90 && value <= 90) {
-                      setInputLat(e.target.value);
-                    }
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="longitude">Longitude</Label>
-                <Input
-                  id="longitude"
-                  type="number"
-                  step="any"
-                  placeholder="-74.0060"
-                  value={inputLng}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    // Allow only numbers, decimal points, and minus signs
-                    if (value === '' || /^-?\d*\.?\d*$/.test(value)) {
-                      setInputLng(value);
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const value = parseFloat(e.target.value);
-                    if (!isNaN(value) && value >= -180 && value <= 180) {
-                      setInputLng(e.target.value);
-                    }
-                  }}
-                />
-              </div>
-            </div>
-            
-            {/* Help text */}
-            <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg">
-              <p className="mb-1"><strong>Coordinate Format:</strong></p>
-              <p>• Latitude: -90° to 90° (positive = North, negative = South)</p>
-              <p>• Longitude: -180° to 180° (positive = East, negative = West)</p>
-              <p className="mt-1"><strong>Example:</strong> New York City: 40.7128, -74.0060</p>
-            </div>
-            
-            <div className="flex gap-2">
-              <Button
-                onClick={handleCoordinateSubmit}
-                disabled={isLoading}
-                className="flex-1"
-                size="lg"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Analyzing...
-                  </>
-                ) : (
-                  <>
-                    <MapPin className="mr-2 h-4 w-4" />
-                    Analyze Coordinates
-                  </>
-                )}
-              </Button>
-              <Button
-                onClick={() => {
-                  setInputLat("");
-                  setInputLng("");
-                }}
-                variant="outline"
-                size="lg"
-                disabled={isLoading}
-              >
-                Clear
-              </Button>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="image" className="space-y-4 mt-4">
-            <div className="space-y-4">
-              <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                {!imagePreview ? (
-                  <div className="space-y-4">
-                    <Upload className="h-12 w-12 mx-auto text-slate-400" />
-                    <div>
-                      <p className="text-sm font-medium text-slate-700">
-                        Upload terrain image
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        JPG, PNG, or GIF up to 10MB
-                      </p>
-                    </div>
-                    <Button
-                      onClick={() => fileInputRef.current?.click()}
-                      variant="outline"
-                      size="sm"
-                    >
-                      <Camera className="mr-2 h-4 w-4" />
-                      Choose Image
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <img
-                      src={imagePreview}
-                      alt="Terrain image preview"
-                      className="max-h-48 mx-auto rounded-lg shadow-sm"
+              <TabsContent value="coordinates" className="space-y-4 mt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="latitude">Latitude</Label>
+                    <Input
+                      id="latitude"
+                      type="number"
+                      step="any"
+                      placeholder="40.7128"
+                      value={inputLat}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow only numbers, decimal points, and minus signs
+                        if (value === '' || /^-?\d*\.?\d*$/.test(value)) {
+                          setInputLat(value);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value) && value >= -90 && value <= 90) {
+                          setInputLat(e.target.value);
+                        }
+                      }}
                     />
-                    <div className="flex gap-2 justify-center">
-                      <Button
-                        onClick={() => fileInputRef.current?.click()}
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Camera className="mr-2 h-4 w-4" />
-                        Change Image
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          setSelectedImage(null);
-                          setImagePreview("");
-                        }}
-                        variant="outline"
-                        size="sm"
-                      >
-                        Remove
-                      </Button>
-                    </div>
                   </div>
-                )}
-              </div>
-              <Button
-                onClick={handleImageAnalysis}
-                disabled={isLoading || !selectedImage}
-                className="w-full"
-                size="lg"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Analyzing...
-                  </>
-                ) : (
-                  <>
-                    <Image className="mr-2 h-4 w-4" />
-                    Analyze Image
-                  </>
-                )}
-              </Button>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+                  <div className="space-y-2">
+                    <Label htmlFor="longitude">Longitude</Label>
+                    <Input
+                      id="longitude"
+                      type="number"
+                      step="any"
+                      placeholder="-74.0060"
+                      value={inputLng}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow only numbers, decimal points, and minus signs
+                        if (value === '' || /^-?\d*\.?\d*$/.test(value)) {
+                          setInputLng(value);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value) && value >= -180 && value <= 180) {
+                          setInputLng(e.target.value);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+                
+                {/* Help text */}
+                <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg">
+                  <p className="mb-1"><strong>Coordinate Format:</strong></p>
+                  <p>• Latitude: -90° to 90° (positive = North, negative = South)</p>
+                  <p>• Longitude: -180° to 180° (positive = East, negative = West)</p>
+                  <p className="mt-1"><strong>Example:</strong> New York City: 40.7128, -74.0060</p>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleCoordinateSubmit}
+                    disabled={isLoading}
+                    className="flex-1"
+                    size="lg"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Analyzing...
+                      </>
+                    ) : (
+                      <>
+                        <MapPin className="mr-2 h-4 w-4" />
+                        Analyze Coordinates
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setInputLat("");
+                      setInputLng("");
+                    }}
+                    variant="outline"
+                    size="lg"
+                    disabled={isLoading}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="image" className="space-y-4 mt-4">
+                <div className="space-y-4">
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    {!imagePreview ? (
+                      <div className="space-y-4">
+                        <Upload className="h-12 w-12 mx-auto text-slate-400" />
+                        <div>
+                          <p className="text-sm font-medium text-slate-700">
+                            Upload terrain image
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            JPG, PNG, or GIF up to 10MB
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => fileInputRef.current?.click()}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Camera className="mr-2 h-4 w-4" />
+                          Choose Image
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <img
+                          src={imagePreview}
+                          alt="Terrain image preview"
+                          className="max-h-48 mx-auto rounded-lg shadow-sm"
+                        />
+                        <div className="flex gap-2 justify-center">
+                          <Button
+                            onClick={() => fileInputRef.current?.click()}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Camera className="mr-2 h-4 w-4" />
+                            Change Image
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              setSelectedImage(null);
+                              setImagePreview("");
+                            }}
+                            variant="outline"
+                            size="sm"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    onClick={handleImageAnalysis}
+                    disabled={isLoading || !selectedImage}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Analyzing...
+                      </>
+                    ) : (
+                      <>
+                        <Image className="mr-2 h-4 w-4" />
+                        Analyze Image
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      
   );
 };
 

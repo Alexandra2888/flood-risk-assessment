@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
+import { useRouter } from "next/navigation";
 import Header from "@/components/header/header";
 import Results from "@/components/results/results";
 import Map from "@/components/map/map";
@@ -9,6 +10,9 @@ import AnalysisInputs from "@/components/analysis-inputs/analysis-inputs";
 import Cards from "@/components/cards/cards";
 import Dialog from "@/components/dialog/dialog";
 import { FloodRiskData } from "@/lib/types";
+import { useAuth } from "@clerk/nextjs";
+import { Button } from "@/components/ui/button";
+import Navbar from "@/components/navbar/navbar";
 
 export default function FloodDetectionSystem() {
   const [floodRisk, setFloodRisk] = useState<FloodRiskData | null>(null);
@@ -20,6 +24,9 @@ export default function FloodDetectionSystem() {
   const [aiAnalysis, setAiAnalysis] = useState<string>("");
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
+
+  const { isSignedIn } = useAuth();
+  const router = useRouter();
 
   // Initialize Google Maps
   useEffect(() => {
@@ -107,14 +114,23 @@ export default function FloodDetectionSystem() {
     }
   };
 
+  // Handle sign-in redirect
+  const handleSignIn = () => {
+    router.push('/sign-in');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <Navbar />
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <Header />
-        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Input Section */}
-          <AnalysisInputs
+          
+
+          {isSignedIn ? (
+            <>
+            <AnalysisInputs
             onAnalysisComplete={handleAnalysisComplete}
             isLoading={isLoading}
             setIsLoading={setIsLoading}
@@ -123,18 +139,29 @@ export default function FloodDetectionSystem() {
             setShowAlert={setShowAlert}
             onMapUpdate={handleMapUpdate}
           />
-
-          {/* Results Section */}
-          <Results 
-            floodRisk={floodRisk}
-            isLoading={isLoading}
-            analysisType="coordinates"
-            aiAnalysis={aiAnalysis}
-          />
+           
+            <Results 
+              floodRisk={floodRisk}
+              isLoading={isLoading}
+              analysisType="coordinates"
+              aiAnalysis={aiAnalysis}
+            />
+            </>
+          ) : (
+            <div className="col-span-2 flex flex-col justify-center items-center h-64">
+              <Button 
+                variant="default" 
+                size="lg" 
+                className="px-8 py-4 text-lg"
+                onClick={handleSignIn}
+              >
+                Log in to analyze
+              </Button>
+            </div>
+          )}
         </div>
 
-        {/* Cards Section - Alternative view of results */}
-        {floodRisk && (
+        {floodRisk && isSignedIn && (
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-slate-800 mb-4 text-center">
               Risk Assessment Overview
