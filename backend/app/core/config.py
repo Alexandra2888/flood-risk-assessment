@@ -1,0 +1,39 @@
+from pydantic_settings import BaseSettings
+from typing import List
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+class Settings(BaseSettings):
+    """Application settings"""
+    
+    # Server settings
+    app_name: str = "Flood Risk Assessment API"
+    app_version: str = "1.0.0"
+    debug: bool = os.getenv("DEBUG", "false").lower() == "true"
+    port: int = int(os.getenv("PORT", 8000))
+    host: str = os.getenv("HOST", "0.0.0.0")
+    
+    # CORS settings
+    allowed_origins: List[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001"
+    ]
+    
+    # Google AI settings
+    google_api_key: str = os.getenv("GOOGLE_API_KEY", "")
+    
+    # Security settings
+    secret_key: str = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
+    algorithm: str = os.getenv("ALGORITHM", "HS256")
+    access_token_expire_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+
+# Create settings instance
+settings = Settings()
