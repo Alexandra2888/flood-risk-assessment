@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     host: str = os.getenv("HOST", "0.0.0.0")
     
     # CORS settings - using string to avoid Pydantic JSON parsing issues
-    _allowed_origins_str: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,https://flood-risk-assessment.onrender.com"
+    _allowed_origins_str: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,https://flood-risk-assessment.onrender.com,https://flood-risk-assessment.vercel.app"
     
     @property
     def allowed_origins(self) -> List[str]:
