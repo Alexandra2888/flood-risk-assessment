@@ -8,6 +8,7 @@ pydantic>=2.11.7
 pydantic-settings>=2.10.1
 aiofiles>=24.1.0
 pillow>=11.3.0
+requests>=2.31.0
 
 # Development dependencies (install with: uv add --dev black isort mypy pytest pytest-asyncio httpx)
 # black>=25.1.0

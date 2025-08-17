@@ -66,3 +66,43 @@ class ErrorResponse(BaseModel):
     detail: str = Field(..., description="Error description")
     error_code: Optional[str] = Field(None, description="Error code")
     timestamp: datetime = Field(..., description="Error timestamp")
+
+# User-related models
+class User(BaseModel):
+    """User model"""
+    id: str = Field(..., description="User ID")
+    clerkId: str = Field(..., description="Clerk user ID")
+    email: str = Field(..., description="User email")
+    firstName: Optional[str] = Field(None, description="User first name")
+    lastName: Optional[str] = Field(None, description="User last name")
+    imageUrl: Optional[str] = Field(None, description="User profile image URL")
+    createdAt: str = Field(..., description="User creation timestamp")
+    updatedAt: str = Field(..., description="User last update timestamp")
+    lastSignInAt: Optional[str] = Field(None, description="Last sign in timestamp")
+
+class UserToken(BaseModel):
+    """User token model"""
+    id: str = Field(..., description="Token ID")
+    userId: str = Field(..., description="User ID")
+    clerkId: str = Field(..., description="Clerk user ID")
+    token: str = Field(..., description="Authentication token")
+    expiresAt: str = Field(..., description="Token expiration timestamp")
+    createdAt: str = Field(..., description="Token creation timestamp")
+
+class TokenVerificationRequest(BaseModel):
+    """Request model for token verification"""
+    token: str = Field(..., description="Token to verify")
+
+class TokenVerificationResponse(BaseModel):
+    """Response model for token verification"""
+    valid: bool = Field(..., description="Whether the token is valid")
+    user: Optional[User] = Field(None, description="User associated with the token")
+    error: Optional[str] = Field(None, description="Error message if verification failed")
+
+# Generic API Response models
+class ApiResponse(BaseModel):
+    """Generic API response model"""
+    success: bool = Field(..., description="Whether the request was successful")
+    data: Optional[dict] = Field(None, description="Response data")
+    error: Optional[str] = Field(None, description="Error message")
+    message: Optional[str] = Field(None, description="Response message")

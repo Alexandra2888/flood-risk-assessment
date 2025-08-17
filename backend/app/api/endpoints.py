@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import JSONResponse
 from typing import Optional
 import google.generativeai as genai
 from app.core.config import settings
+from app.core.auth import get_current_user, get_current_user_optional
+from app.models.schemas import User, TokenVerificationRequest, TokenVerificationResponse, ApiResponse
 import aiofiles
 import os
 from PIL import Image
@@ -75,8 +77,49 @@ async def list_available_models():
         "api_key_configured": bool(settings.google_api_key)
     }
 
+@router.post("/verify-token")
+async def verify_token(request: TokenVerificationRequest):
+    """
+    Verify authentication token
+    """
+    try:
+        from app.core.auth import verify_token_with_frontend
+        
+        user = await verify_token_with_frontend(request.token)
+        
+        if not user:
+            return TokenVerificationResponse(
+                valid=False,
+                error="Invalid or expired token"
+            )
+        
+        return TokenVerificationResponse(
+            valid=True,
+            user=user
+        )
+        
+    except Exception as e:
+        return TokenVerificationResponse(
+            valid=False,
+            error=f"Token verification failed: {str(e)}"
+        )
+
+@router.get("/me")
+async def get_current_user_info(current_user: User = Depends(get_current_user)):
+    """
+    Get current authenticated user information
+    """
+    return ApiResponse(
+        success=True,
+        data=current_user.dict(),
+        message="User information retrieved successfully"
+    )
+
 @router.post("/analyze/coordinates")
-async def analyze_flood_risk_coordinates(request: CoordinateRequest):
+async def analyze_flood_risk_coordinates(
+    request: CoordinateRequest,
+    current_user: User = Depends(get_current_user)
+):
     """
     Analyze flood risk based on coordinates
     """
@@ -129,7 +172,8 @@ async def analyze_flood_risk_coordinates(request: CoordinateRequest):
 @router.post("/analyze/image")
 async def analyze_flood_risk_image(
     file: UploadFile = File(...),
-    location: Optional[str] = None
+    location: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
 ):
     """
     Analyze an image for flood risk assessment using Google AI
@@ -260,7 +304,8 @@ async def create_manual_assessment(
     elevation: float,
     water_proximity: str,
     soil_type: str,
-    risk_level: str
+    risk_level: str,
+    current_user: User = Depends(get_current_user)
 ):
     """Create a manual flood risk assessment"""
     return {
@@ -270,6 +315,7 @@ async def create_manual_assessment(
             "water_proximity": water_proximity,
             "soil_type": soil_type,
             "risk_level": risk_level,
-            "timestamp": "2024-01-01T00:00:00Z"
+            "timestamp": "2024-01-01T00:00:00Z",
+            "created_by": current_user.email
         }
     }

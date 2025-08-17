@@ -10,7 +10,8 @@ import AnalysisInputs from "@/components/analysis-inputs/analysis-inputs";
 import Cards from "@/components/cards/cards";
 import Dialog from "@/components/dialog/dialog";
 import { FloodRiskData } from "@/lib/types";
-import { useAuth } from "@clerk/nextjs";
+
+import { useAuthenticatedUser } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/navbar/navbar";
 
@@ -25,7 +26,7 @@ export default function FloodDetectionSystem() {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
 
-  const { isSignedIn } = useAuth();
+  const { isAuthenticated, localUser, isLoading: isAuthLoading, error: authError } = useAuthenticatedUser();
   const router = useRouter();
 
   // Initialize Google Maps
@@ -128,7 +129,7 @@ export default function FloodDetectionSystem() {
           {/* Input Section */}
           
 
-          {isSignedIn ? (
+          {isAuthenticated ? (
             <>
             <AnalysisInputs
             onAnalysisComplete={handleAnalysisComplete}
@@ -149,19 +150,38 @@ export default function FloodDetectionSystem() {
             </>
           ) : (
             <div className="col-span-2 flex flex-col justify-center items-center h-64">
-              <Button 
-                variant="default" 
-                size="lg" 
-                className="px-8 py-4 text-lg"
-                onClick={handleSignIn}
-              >
-                Log in to analyze
-              </Button>
+              {isAuthLoading ? (
+                <div className="flex flex-col items-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+                  <p className="text-slate-600">Setting up your account...</p>
+                </div>
+              ) : authError ? (
+                <div className="flex flex-col items-center">
+                  <p className="text-red-600 mb-4">Authentication error: {authError}</p>
+                  <Button 
+                    variant="default" 
+                    size="lg" 
+                    className="px-8 py-4 text-lg"
+                    onClick={handleSignIn}
+                  >
+                    Try signing in again
+                  </Button>
+                </div>
+              ) : (
+                <Button 
+                  variant="default" 
+                  size="lg" 
+                  className="px-8 py-4 text-lg"
+                  onClick={handleSignIn}
+                >
+                  Log in to analyze
+                </Button>
+              )}
             </div>
           )}
         </div>
 
-        {floodRisk && isSignedIn && (
+        {floodRisk && isAuthenticated && (
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-slate-800 mb-4 text-center">
               Risk Assessment Overview
