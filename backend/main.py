@@ -1,15 +1,34 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.api import api_router
+from app.services.database import database_service
 import uvicorn
+import logging
+
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager"""
+    # Startup
+    logger.info("Initializing database...")
+    await database_service.initialize()
+    logger.info("Database initialized successfully")
+    
+    yield
+    
+    # Shutdown
+    logger.info("Application shutting down...")
 
 # Create FastAPI app
 app = FastAPI(
     title=settings.app_name,
-    description="Backend API for flood risk assessment application",
+    description="Backend API for flood risk assessment application with user management",
     version=settings.app_version,
-    debug=settings.debug
+    debug=settings.debug,
+    lifespan=lifespan
 )
 
 # Configure CORS

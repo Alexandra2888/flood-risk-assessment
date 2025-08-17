@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     # Google AI settings
     google_api_key: str = os.getenv("GOOGLE_API_KEY", "")
     
+    # Clerk settings
+    clerk_secret_key: str = os.getenv("CLERK_SECRET_KEY", "")
+    clerk_publishable_key: str = os.getenv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "")
+    
     # Security settings
     secret_key: str = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
     algorithm: str = os.getenv("ALGORITHM", "HS256")

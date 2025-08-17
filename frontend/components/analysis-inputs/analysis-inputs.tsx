@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { AnalysisInputsProps, FloodRiskData } from "@/lib/types";
 import { useAuthenticatedUser } from "@/lib/auth-utils";
+import { apiService, ApiError, NetworkError } from "@/lib/api-service";
 
 const AnalysisInputs = ({
   onAnalysisComplete,
@@ -37,8 +38,6 @@ const AnalysisInputs = ({
   // Get authentication token
   const { authToken, isAuthenticated, isLoading: authLoading, localUser, error: authError} = useAuthenticatedUser();
 
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-
   // Debug logging
   console.log('Auth Debug:', {
     isAuthenticated,
@@ -48,50 +47,7 @@ const AnalysisInputs = ({
     authLoading
   });
 
-  // API calls
-  const callAPI = async (endpoint: string, data: FormData | Record<string, unknown>) => {
-    // Check if user is authenticated and has a token
-    if (!isAuthenticated || !authToken) {
-      throw new Error("Authentication required. Please sign in to continue.");
-    }
-
-    const url = `${API_BASE_URL}${endpoint}`;
-    console.log(`Making API call to: ${url}`);
-    console.log('Request data:', data);
-    
-    try {
-      const headers: Record<string, string> = {
-        'Authorization': `Bearer ${authToken}`,
-      };
-
-      // Add Content-Type header for JSON requests
-      if (endpoint.includes("coordinates")) {
-        headers['Content-Type'] = 'application/json';
-      }
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers,
-        body: endpoint.includes("coordinates") ? JSON.stringify(data as Record<string, unknown>) : data as FormData,
-      });
-      
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error Response:', errorText);
-        throw new Error(`API error: ${response.status} - ${errorText}`);
-      }
-      
-      const result = await response.json();
-      console.log('API Response:', result);
-      return result;
-    } catch (error) {
-      console.error('Fetch error:', error);
-      throw error;
-    }
-  };
+  // Not needed anymore - using API service
 
   // Analysis handlers
   const handleCoordinateSubmit = async () => {
@@ -139,14 +95,30 @@ const AnalysisInputs = ({
 
     setIsLoading(true);
     try {
-      const apiResponse = await callAPI("/analyze/coordinates", {
-        latitude: lat,
-        longitude: lng,
-      });
+      if (!authToken) {
+        throw new Error("Authentication required. Please sign in to continue.");
+      }
+
+      const apiResponse = await apiService.analysis.analyzeCoordinates(
+        lat,
+        lng,
+        authToken
+      );
       
-      // Map backend response to frontend interface
+      // Map backend response to frontend interface with proper type mapping
+      const mapRiskLevel = (level: string): "Low" | "Medium" | "High" | "Very High" => {
+        switch (level.toLowerCase()) {
+          case "low": return "Low";
+          case "medium": return "Medium";
+          case "high": return "High";
+          case "very high":
+          case "critical": return "Very High";
+          default: return "Medium";
+        }
+      };
+
       const riskData: FloodRiskData = {
-        riskLevel: apiResponse.risk_level || "Medium",
+        riskLevel: mapRiskLevel(apiResponse.risk_level || "Medium"),
         description: apiResponse.description || "No description available",
         recommendations: apiResponse.recommendations || [],
         elevation: apiResponse.elevation || 0,
@@ -169,14 +141,26 @@ const AnalysisInputs = ({
     } catch (error) {
       console.error("Error analyzing coordinates:", error);
       
-      // Handle authentication errors specifically
-      if (error instanceof Error && error.message.includes("Authentication required")) {
-        setAlertMessage("Please sign in to analyze coordinates");
+      // Handle different error types with proper messaging
+      if (error instanceof ApiError) {
+        if (error.statusCode === 401) {
+          setAlertMessage("Authentication expired. Please sign in again.");
+        } else {
+          setAlertMessage(`Analysis failed: ${error.message}`);
+        }
+        setAlertType("error");
+      } else if (error instanceof NetworkError) {
+        setAlertMessage("Network error. Please check your connection and try again.");
+        setAlertType("error");
+      } else if (error instanceof Error) {
+        if (error.message.includes("Authentication required")) {
+          setAlertMessage("Please sign in to analyze coordinates");
+        } else {
+          setAlertMessage(error.message);
+        }
         setAlertType("error");
       } else {
-        setAlertMessage(
-          "Error analyzing coordinates. Please check if the backend server is running."
-        );
+        setAlertMessage("Unexpected error analyzing coordinates. Please try again.");
         setAlertType("error");
       }
       setShowAlert(true);
@@ -215,13 +199,29 @@ const AnalysisInputs = ({
 
     setIsLoading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", selectedImage);
-      const apiResponse = await callAPI("/analyze/image", formData);
+      if (!authToken) {
+        throw new Error("Authentication required. Please sign in to continue.");
+      }
+
+      const apiResponse = await apiService.analysis.analyzeImage(
+        selectedImage,
+        authToken
+      );
       
-      // Map backend response to frontend interface
+      // Map backend response to frontend interface with proper type mapping
+      const mapRiskLevel = (level: string): "Low" | "Medium" | "High" | "Very High" => {
+        switch (level.toLowerCase()) {
+          case "low": return "Low";
+          case "medium": return "Medium";
+          case "high": return "High";
+          case "very high":
+          case "critical": return "Very High";
+          default: return "Medium";
+        }
+      };
+
       const riskData: FloodRiskData = {
-        riskLevel: apiResponse.risk_level || "Medium",
+        riskLevel: mapRiskLevel(apiResponse.risk_level || "Medium"),
         description: apiResponse.description || "No description available",
         recommendations: apiResponse.recommendations || [],
         elevation: apiResponse.elevation || 0,
@@ -231,17 +231,35 @@ const AnalysisInputs = ({
       const aiAnalysis = apiResponse.ai_analysis || "";
       
       onAnalysisComplete(riskData, aiAnalysis);
+
+      // Show success message
+      setAlertMessage(`Successfully analyzed image: ${selectedImage.name}. Risk level: ${riskData.riskLevel}`);
+      setAlertType("success");
+      setShowAlert(true);
+      
     } catch (error) {
       console.error("Error analyzing image:", error);
       
-      // Handle authentication errors specifically
-      if (error instanceof Error && error.message.includes("Authentication required")) {
-        setAlertMessage("Please sign in to analyze images");
+      // Handle different error types with proper messaging
+      if (error instanceof ApiError) {
+        if (error.statusCode === 401) {
+          setAlertMessage("Authentication expired. Please sign in again.");
+        } else {
+          setAlertMessage(`Image analysis failed: ${error.message}`);
+        }
+        setAlertType("error");
+      } else if (error instanceof NetworkError) {
+        setAlertMessage("Network error. Please check your connection and try again.");
+        setAlertType("error");
+      } else if (error instanceof Error) {
+        if (error.message.includes("Authentication required")) {
+          setAlertMessage("Please sign in to analyze images");
+        } else {
+          setAlertMessage(error.message);
+        }
         setAlertType("error");
       } else {
-        setAlertMessage(
-          "Error analyzing image. Please check if the backend server is running."
-        );
+        setAlertMessage("Unexpected error analyzing image. Please try again.");
         setAlertType("error");
       }
       setShowAlert(true);
