@@ -37,7 +37,7 @@ const AnalysisInputs = ({
   // Get authentication token
   const { authToken, isAuthenticated, isLoading: authLoading, localUser, error: authError} = useAuthenticatedUser();
 
-  const API_BASE_URL = "http://localhost:8000/api/v1";
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
   // Debug logging
   console.log('Auth Debug:', {
