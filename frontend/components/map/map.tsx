@@ -1,16 +1,13 @@
 import { Globe, Map as MapIcon } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card"
 import { RefObject } from "react"
-import { FloodRiskData } from "@/lib/types"
 
 interface MapProps {
-  map: google.maps.Map | null;
   mapError: boolean;
   mapRef: RefObject<HTMLDivElement | null>;
-  floodRisk: FloodRiskData | null;
 }
 
-const Map = ({ map, mapError, mapRef, floodRisk }: MapProps) => {
+const Map = ({ mapError, mapRef }: MapProps) => {
   return (
     <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
       <CardHeader>

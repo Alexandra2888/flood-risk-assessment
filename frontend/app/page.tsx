@@ -26,7 +26,7 @@ export default function FloodDetectionSystem() {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
 
-  const { isAuthenticated, localUser, isLoading: isAuthLoading, error: authError } = useAuthenticatedUser();
+  const { isAuthenticated, isLoading: isAuthLoading, error: authError } = useAuthenticatedUser();
   const router = useRouter();
 
   // Initialize Google Maps
@@ -192,10 +192,8 @@ export default function FloodDetectionSystem() {
 
         {/* Map Section */}
         <Map 
-          map={map}
           mapError={mapError}
           mapRef={mapRef}
-          floodRisk={floodRisk}
         />
       </div>
 

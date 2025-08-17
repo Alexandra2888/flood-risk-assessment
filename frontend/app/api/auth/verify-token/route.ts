@@ -15,9 +15,6 @@ export async function POST(request: NextRequest) {
 
     const db = getDatabase();
 
-    // Find token in database and check if it's valid
-    const userToken = await db.getUserToken(''); // We'll need to modify this method
-
     // For now, let's create a simpler verification method
     const allUsers = await db.getAllUsers();
     let validToken = null;

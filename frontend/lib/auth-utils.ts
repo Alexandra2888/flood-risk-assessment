@@ -1,10 +1,10 @@
 import { useAuth, useUser } from '@clerk/nextjs';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { User, AuthenticatedUser, ApiResponse } from './types';
 
 // Custom hook for handling user authentication and syncing
 export function useAuthenticatedUser() {
-  const { isSignedIn, userId, getToken } = useAuth();
+  const { isSignedIn, userId } = useAuth();
   const { user } = useUser();
   const [localUser, setLocalUser] = useState<User | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -12,7 +12,7 @@ export function useAuthenticatedUser() {
   const [error, setError] = useState<string | null>(null);
 
   // Sync user with local database
-  const syncUser = async () => {
+  const syncUser = useCallback(async () => {
     if (!isSignedIn || !user || !userId) return;
 
     try {
@@ -47,10 +47,10 @@ export function useAuthenticatedUser() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isSignedIn, user, userId]);
 
   // Generate authentication token for FastAPI
-  const generateToken = async (expiresInMinutes?: number) => {
+  const generateToken = useCallback(async (expiresInMinutes?: number) => {
     if (!userId) {
       throw new Error('User not authenticated');
     }
@@ -79,10 +79,10 @@ export function useAuthenticatedUser() {
       console.error('Error generating token:', error);
       throw error;
     }
-  };
+  }, [userId]);
 
   // Get existing token
-  const getExistingToken = async () => {
+  const getExistingToken = useCallback(async () => {
     if (!userId) return null;
 
     try {
@@ -98,7 +98,7 @@ export function useAuthenticatedUser() {
     }
 
     return null;
-  };
+  }, [userId]);
 
   // Initialize user data
   useEffect(() => {
@@ -109,14 +109,14 @@ export function useAuthenticatedUser() {
       setAuthToken(null);
       setIsLoading(false);
     }
-  }, [isSignedIn, user, userId]);
+  }, [isSignedIn, user, userId, syncUser]);
 
   // Try to get existing token when user is synced
   useEffect(() => {
     if (localUser && !authToken) {
       getExistingToken();
     }
-  }, [localUser]);
+  }, [localUser, authToken, getExistingToken]);
 
   return {
     isAuthenticated: isSignedIn,

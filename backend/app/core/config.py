@@ -23,6 +23,9 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3001"
     ]
     
+    # Frontend settings
+    frontend_base_url: str = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
+    
     # Google AI settings
     google_api_key: str = os.getenv("GOOGLE_API_KEY", "")
     

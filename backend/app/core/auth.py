@@ -4,13 +4,14 @@ from typing import Optional
 import requests
 import os
 from app.models.schemas import User, TokenVerificationResponse
+from app.core.config import settings
 
 # Security scheme
 security = HTTPBearer()
 
 def get_frontend_base_url() -> str:
-    """Get the frontend base URL from environment variable"""
-    return os.getenv('FRONTEND_BASE_URL', 'http://localhost:3000')
+    """Get the frontend base URL from settings"""
+    return settings.frontend_base_url
 
 async def verify_token_with_frontend(token: str) -> Optional[User]:
     """

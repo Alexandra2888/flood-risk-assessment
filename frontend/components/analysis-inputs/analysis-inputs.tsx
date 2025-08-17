@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,14 +8,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MapPin,
   Loader2,
-  Image,
+  Image as LucideImage,
   Camera,
   Upload,
   Shield,
 } from "lucide-react";
 import { AnalysisInputsProps, FloodRiskData } from "@/lib/types";
-
-
+import { useAuthenticatedUser } from "@/lib/auth-utils";
 
 const AnalysisInputs = ({
   onAnalysisComplete,
@@ -34,21 +34,44 @@ const AnalysisInputs = ({
   const [imagePreview, setImagePreview] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Get authentication token
+  const { authToken, isAuthenticated, isLoading: authLoading, localUser, error: authError} = useAuthenticatedUser();
 
   const API_BASE_URL = "http://localhost:8000/api/v1";
 
+  // Debug logging
+  console.log('Auth Debug:', {
+    isAuthenticated,
+    authToken: authToken ? `${authToken.substring(0, 10)}...` : null,
+    localUser: localUser ? { id: localUser.id, email: localUser.email } : null,
+    authError,
+    authLoading
+  });
+
   // API calls
   const callAPI = async (endpoint: string, data: FormData | Record<string, unknown>) => {
+    // Check if user is authenticated and has a token
+    if (!isAuthenticated || !authToken) {
+      throw new Error("Authentication required. Please sign in to continue.");
+    }
+
     const url = `${API_BASE_URL}${endpoint}`;
     console.log(`Making API call to: ${url}`);
     console.log('Request data:', data);
     
     try {
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${authToken}`,
+      };
+
+      // Add Content-Type header for JSON requests
+      if (endpoint.includes("coordinates")) {
+        headers['Content-Type'] = 'application/json';
+      }
+
       const response = await fetch(url, {
         method: "POST",
-        headers: endpoint.includes("coordinates")
-          ? { "Content-Type": "application/json" }
-          : {},
+        headers,
         body: endpoint.includes("coordinates") ? JSON.stringify(data as Record<string, unknown>) : data as FormData,
       });
       
@@ -145,10 +168,17 @@ const AnalysisInputs = ({
       }
     } catch (error) {
       console.error("Error analyzing coordinates:", error);
-      setAlertMessage(
-        "Error analyzing coordinates. Please check if the backend server is running."
-      );
-      setAlertType("error");
+      
+      // Handle authentication errors specifically
+      if (error instanceof Error && error.message.includes("Authentication required")) {
+        setAlertMessage("Please sign in to analyze coordinates");
+        setAlertType("error");
+      } else {
+        setAlertMessage(
+          "Error analyzing coordinates. Please check if the backend server is running."
+        );
+        setAlertType("error");
+      }
       setShowAlert(true);
     } finally {
       setIsLoading(false);
@@ -203,10 +233,17 @@ const AnalysisInputs = ({
       onAnalysisComplete(riskData, aiAnalysis);
     } catch (error) {
       console.error("Error analyzing image:", error);
-      setAlertMessage(
-        "Error analyzing image. Please check if the backend server is running."
-      );
-      setAlertType("error");
+      
+      // Handle authentication errors specifically
+      if (error instanceof Error && error.message.includes("Authentication required")) {
+        setAlertMessage("Please sign in to analyze images");
+        setAlertType("error");
+      } else {
+        setAlertMessage(
+          "Error analyzing image. Please check if the backend server is running."
+        );
+        setAlertType("error");
+      }
       setShowAlert(true);
     } finally {
       setIsLoading(false);
@@ -221,8 +258,21 @@ const AnalysisInputs = ({
               <Shield className="h-5 w-5 text-blue-600" />
               Analysis Methods
             </CardTitle>
+           
           </CardHeader>
           <CardContent>
+            {/* Authentication Required Message */}
+            {!isAuthenticated && !authLoading && (
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  🔐 <strong>Authentication Required:</strong> You need to be signed in to use the flood risk analysis features. 
+                  Please sign in using the authentication system above.
+                </p>
+              </div>
+            )}
+            
+         
+            
             <Tabs
               value={analysisType}
               onValueChange={(value) =>
@@ -242,7 +292,7 @@ const AnalysisInputs = ({
                   value="image"
                   className="flex items-center gap-2"
                 >
-                  <Image className="h-4 w-4" />
+                  <LucideImage className="h-4 w-4" />
                   Image Analysis
                 </TabsTrigger>
               </TabsList>
@@ -308,7 +358,7 @@ const AnalysisInputs = ({
                 <div className="flex gap-2">
                   <Button
                     onClick={handleCoordinateSubmit}
-                    disabled={isLoading}
+                    disabled={isLoading || !isAuthenticated || !authToken}
                     className="flex-1"
                     size="lg"
                   >
@@ -370,9 +420,11 @@ const AnalysisInputs = ({
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        <img
+                        <Image
                           src={imagePreview}
                           alt="Terrain image preview"
+                          width={200}
+                          height={150}
                           className="max-h-48 mx-auto rounded-lg shadow-sm"
                         />
                         <div className="flex gap-2 justify-center">
@@ -400,7 +452,7 @@ const AnalysisInputs = ({
                   </div>
                   <Button
                     onClick={handleImageAnalysis}
-                    disabled={isLoading || !selectedImage}
+                    disabled={isLoading || !selectedImage || !isAuthenticated || !authToken}
                     className="w-full"
                     size="lg"
                   >
@@ -411,7 +463,7 @@ const AnalysisInputs = ({
                       </>
                     ) : (
                       <>
-                        <Image className="mr-2 h-4 w-4" />
+                        <LucideImage className="mr-2 h-4 w-4" />
                         Analyze Image
                       </>
                     )}
