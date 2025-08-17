@@ -11,6 +11,7 @@ pillow>=11.3.0
 requests>=2.31.0
 aiosqlite>=0.20.0
 httpx>=0.28.1
+pyjwt>=2.8.0
 
 # Development dependencies (install with: uv add --dev black isort mypy pytest pytest-asyncio httpx)
 # black>=25.1.0
