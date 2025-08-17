@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { getDatabase } from '@/lib/database';
 import { ApiResponse } from '@/lib/types';
 import { Webhook } from 'svix';
 
@@ -113,44 +112,21 @@ export async function POST(request: NextRequest) {
 
 async function handleUserUpsert(data: ClerkWebhookEvent['data']) {
   try {
-    const db = getDatabase();
-
-    // Get the primary email address
-    const primaryEmail = data.email_addresses.find(email => 
-      email.verification && email.verification.status === 'verified'
-    ) || data.email_addresses[0];
-
-    if (!primaryEmail) {
-      console.error('No email address found for user:', data.id);
-      return;
-    }
-
-    const userData = {
-      clerkId: data.id,
-      email: primaryEmail.email_address,
-      firstName: data.first_name || undefined,
-      lastName: data.last_name || undefined,
-      imageUrl: data.image_url || undefined,
-      lastSignInAt: data.last_sign_in_at ? new Date(data.last_sign_in_at).toISOString() : undefined,
-    };
-
-    await db.upsertUser(userData);
-    console.log(`User ${data.id} synchronized successfully`);
+    console.log('User webhook received, but skipping local database operations');
+    console.log('User sync will be handled by frontend auth flow calling backend API');
+    console.log(`User ${data.id} webhook processed`);
   } catch (error) {
-    console.error('Error upserting user:', error);
+    console.error('Error processing user webhook:', error);
   }
 }
 
 async function handleSessionCreated(data: ClerkWebhookEvent['data']) {
   try {
-    const db = getDatabase();
-
-    // Update last sign in time
-    const now = new Date().toISOString();
-    await db.updateUser(data.id, { lastSignInAt: now });
-    console.log(`Updated last sign in for user ${data.id}`);
+    console.log('Session webhook received, but skipping local database operations');
+    console.log('Session updates will be handled by frontend auth flow calling backend API');
+    console.log(`Session for user ${data.id} webhook processed`);
   } catch (error) {
-    console.error('Error updating last sign in:', error);
+    console.error('Error processing session webhook:', error);
   }
 }
 
