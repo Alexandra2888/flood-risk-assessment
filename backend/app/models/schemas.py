@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, TypeVar, Generic
 from datetime import datetime
 from enum import Enum
 
@@ -100,9 +100,11 @@ class TokenVerificationResponse(BaseModel):
     error: Optional[str] = Field(None, description="Error message if verification failed")
 
 # Generic API Response models
-class ApiResponse(BaseModel):
+T = TypeVar('T')
+
+class ApiResponse(BaseModel, Generic[T]):
     """Generic API response model"""
     success: bool = Field(..., description="Whether the request was successful")
-    data: Optional[dict] = Field(None, description="Response data")
+    data: Optional[T] = Field(None, description="Response data")
     error: Optional[str] = Field(None, description="Error message")
     message: Optional[str] = Field(None, description="Response message")

@@ -36,7 +36,7 @@ class AuthenticatedUserResponse(BaseModel):
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
-@router.post("/sync-user", response_model=ApiResponse)
+@router.post("/sync-user", response_model=ApiResponse[User])
 async def sync_user(request: SyncUserRequest):
     """
     Synchronize user with local database
@@ -65,9 +65,9 @@ async def sync_user(request: SyncUserRequest):
         # Upsert user in database
         user = await database_service.upsert_user(user_data)
         
-        return ApiResponse(
+        return ApiResponse[User](
             success=True,
-            data=user.dict(),
+            data=user,
             message="User synchronized successfully"
         )
         
@@ -78,7 +78,7 @@ async def sync_user(request: SyncUserRequest):
             detail=f"Failed to sync user: {str(e)}"
         )
 
-@router.post("/generate-token", response_model=ApiResponse)
+@router.post("/generate-token", response_model=ApiResponse[AuthenticatedUserResponse])
 async def generate_token(request: GenerateTokenRequest):
     """
     Generate authentication token for user
@@ -113,9 +113,9 @@ async def generate_token(request: GenerateTokenRequest):
             expiresAt=user_token.expiresAt
         )
         
-        return ApiResponse(
+        return ApiResponse[AuthenticatedUserResponse](
             success=True,
-            data=authenticated_user.dict(),
+            data=authenticated_user,
             message="Token generated successfully"
         )
         
@@ -128,7 +128,7 @@ async def generate_token(request: GenerateTokenRequest):
             detail=f"Failed to generate token: {str(e)}"
         )
 
-@router.get("/token", response_model=ApiResponse)
+@router.get("/token", response_model=ApiResponse[AuthenticatedUserResponse])
 async def get_existing_token(current_user: User = Depends(get_current_user)):
     """
     Get existing valid token for authenticated user
@@ -149,9 +149,9 @@ async def get_existing_token(current_user: User = Depends(get_current_user)):
             expiresAt=user_token.expiresAt
         )
         
-        return ApiResponse(
+        return ApiResponse[AuthenticatedUserResponse](
             success=True,
-            data=authenticated_user.dict(),
+            data=authenticated_user,
             message="Token retrieved successfully"
         )
         
@@ -164,14 +164,14 @@ async def get_existing_token(current_user: User = Depends(get_current_user)):
             detail=f"Failed to get token: {str(e)}"
         )
 
-@router.get("/me", response_model=ApiResponse)
+@router.get("/me", response_model=ApiResponse[User])
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """
     Get current authenticated user information
     """
-    return ApiResponse(
+    return ApiResponse[User](
         success=True,
-        data=current_user.dict(),
+        data=current_user,
         message="User information retrieved successfully"
     )
 
