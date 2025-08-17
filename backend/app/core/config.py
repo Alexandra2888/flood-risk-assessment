@@ -1,6 +1,5 @@
 from pydantic_settings import BaseSettings
-from pydantic import field_validator
-from typing import List, Union
+from typing import List
 import os
 from dotenv import load_dotenv
 
@@ -16,23 +15,19 @@ class Settings(BaseSettings):
     port: int = int(os.getenv("PORT", 8000))
     host: str = os.getenv("HOST", "0.0.0.0")
     
-    # CORS settings
-    allowed_origins: List[str] = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-        "https://flood-risk-assessment.onrender.com"
-    ]
+    # CORS settings - using string to avoid Pydantic JSON parsing issues
+    _allowed_origins_str: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,https://flood-risk-assessment.onrender.com"
     
-    @field_validator('allowed_origins', mode='before')
-    @classmethod
-    def parse_allowed_origins(cls, v: Union[List[str], str]) -> List[str]:
-        """Parse allowed origins from string or list"""
-        if isinstance(v, str):
-            # Split comma-separated string and strip whitespace
-            return [origin.strip() for origin in v.split(',') if origin.strip()]
-        return v
+    @property
+    def allowed_origins(self) -> List[str]:
+        """Get allowed origins as a list"""
+        # Check if environment variable is set
+        env_origins = os.getenv("ALLOWED_ORIGINS")
+        if env_origins:
+            return [origin.strip() for origin in env_origins.split(',') if origin.strip()]
+        
+        # Use default value
+        return [origin.strip() for origin in self._allowed_origins_str.split(',') if origin.strip()]
     
     # Frontend settings
     frontend_base_url: str = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
