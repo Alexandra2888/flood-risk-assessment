@@ -111,12 +111,33 @@ export function useAuthenticatedUser() {
     }
   }, [isSignedIn, user, userId, syncUser]);
 
-  // Try to get existing token when user is synced
+  // Try to get existing token when user is synced, generate new one if none exists
   useEffect(() => {
-    if (localUser && !authToken) {
-      getExistingToken();
-    }
-  }, [localUser, authToken, getExistingToken]);
+    const initializeToken = async () => {
+      if (localUser && !authToken && userId) {
+        try {
+          // Try to get existing token first
+          const existingAuth = await getExistingToken();
+          if (!existingAuth) {
+            // If no existing token, generate a new one
+            console.log('No existing token found, generating new token...');
+            await generateToken();
+          }
+        } catch (error) {
+          console.error('Error initializing token:', error);
+          // If getting existing token fails, try generating a new one
+          try {
+            await generateToken();
+          } catch (generateError) {
+            console.error('Error generating new token:', generateError);
+            setError('Failed to generate authentication token');
+          }
+        }
+      }
+    };
+
+    initializeToken();
+  }, [localUser, authToken, userId, getExistingToken, generateToken]);
 
   return {
     isAuthenticated: isSignedIn,
