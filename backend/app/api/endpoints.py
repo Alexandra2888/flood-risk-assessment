@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import JSONResponse
 from typing import Optional
-import google.generativeai as genai
+import anthropic
 from app.core.config import settings
 from app.core.auth import get_current_user, get_current_user_optional
 from app.models.schemas import User, TokenVerificationRequest, TokenVerificationResponse, ApiResponse
@@ -9,40 +9,22 @@ import aiofiles
 import os
 from PIL import Image
 import io
+import base64
 from pydantic import BaseModel
 
-# Request models
 class CoordinateRequest(BaseModel):
     latitude: float
     longitude: float
 
 router = APIRouter()
 
-# Configure Google AI
-if settings.google_api_key:
-    genai.configure(api_key=settings.google_api_key)
+_anthropic_client: Optional[anthropic.Anthropic] = None
 
-# Function to get available models
-async def get_available_models():
-    """Get list of available Google AI models"""
-    try:
-        if not settings.google_api_key:
-            return []
-        
-        models = genai.list_models()
-        available_models = []
-        for model in models:
-            if 'generateContent' in model.supported_generation_methods:
-                available_models.append({
-                    'name': model.name,
-                    'display_name': model.display_name,
-                    'description': model.description,
-                    'generation_methods': model.supported_generation_methods
-                })
-        return available_models
-    except Exception as e:
-        print(f"Error getting available models: {e}")
-        return []
+def get_anthropic_client() -> Optional[anthropic.Anthropic]:
+    global _anthropic_client
+    if _anthropic_client is None and settings.anthropic_api_key:
+        _anthropic_client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    return _anthropic_client
 
 @router.get("/")
 async def root():
@@ -69,12 +51,11 @@ async def test_connection():
 
 @router.get("/models")
 async def list_available_models():
-    """List available Google AI models"""
-    models = await get_available_models()
+    """List available AI models"""
     return {
-        "available_models": models,
-        "total_count": len(models),
-        "api_key_configured": bool(settings.google_api_key)
+        "available_models": [{"name": "claude-sonnet-4-20250514", "provider": "anthropic"}],
+        "total_count": 1,
+        "api_key_configured": bool(settings.anthropic_api_key)
     }
 
 @router.post("/verify-token")
@@ -175,111 +156,95 @@ async def analyze_flood_risk_image(
     location: Optional[str] = None,
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Analyze an image for flood risk assessment using Google AI
-    """
+    """Analyze an image for flood risk assessment using Anthropic Claude"""
     try:
-        # Debug logging
-        print(f"Debug: Google API key configured: {bool(settings.google_api_key)}")
-        print(f"Debug: API key length: {len(settings.google_api_key) if settings.google_api_key else 0}")
-        
-        # Validate file type
-        if not file.content_type.startswith('image/'):
+        if not file.content_type or not file.content_type.startswith('image/'):
             raise HTTPException(status_code=400, detail="File must be an image")
-        
-        # Read and process image
+
         contents = await file.read()
-        image = Image.open(io.BytesIO(contents))
-        
-        # Save image temporarily for analysis
-        temp_path = f"temp_{file.filename}"
-        image.save(temp_path)
-        
-        try:
-            # Analyze with Google AI if API key is available
-            if settings.google_api_key:
-                analysis = ""
-                ai_error = None
-                
-                # Try different model names in order of preference
-                model_names = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro-vision']
-                
-                for model_name in model_names:
-                    try:
-                        print(f"Debug: Trying model: {model_name}")
-                        model = genai.GenerativeModel(model_name)
-                        
-                        prompt = f"""
-                        Analyze this image for flood risk assessment. 
-                        Consider factors like:
-                        - Terrain and elevation
-                        - Water bodies and drainage patterns
-                        - Vegetation and land use
-                        - Infrastructure and buildings
-                        
-                        Location context: {location or 'Not specified'}
-                        
-                        Provide a detailed risk assessment with:
-                        1. Risk level (Low/Medium/High)
-                        2. Key risk factors
-                        3. Recommendations
-                        """
-                        
-                        response = model.generate_content([prompt, image])
-                        analysis = response.text
-                        print(f"Debug: Successfully used model: {model_name}")
-                        break
-                        
-                    except Exception as e:
-                        print(f"Debug: Model {model_name} failed: {e}")
-                        ai_error = e
-                        continue
-                
-                if not analysis:
-                    print(f"Debug: All models failed. Last error: {ai_error}")
-                    analysis = f"AI analysis failed: {str(ai_error)}. Basic image analysis suggests medium flood risk."
-                
-                # Parse AI response to extract risk level
-                risk_level = "Medium"  # Default
-                if "high risk" in analysis.lower() or "high" in analysis.lower():
-                    risk_level = "High"
-                elif "low risk" in analysis.lower() or "low" in analysis.lower():
-                    risk_level = "Low"
-                
-                return {
-                    "risk_level": risk_level,
-                    "description": f"AI analysis of {file.filename}",
-                    "recommendations": [
-                        "Review AI analysis results",
-                        "Consider professional assessment",
-                        "Check local flood maps",
-                        "Monitor weather conditions"
+        client = get_anthropic_client()
+
+        if not client:
+            return {
+                "risk_level": "Medium",
+                "description": f"Manual analysis of {file.filename}",
+                "recommendations": [
+                    "AI analysis not available — ANTHROPIC_API_KEY not configured",
+                    "Consider professional assessment",
+                    "Check local flood maps"
+                ],
+                "elevation": 0,
+                "distance_from_water": 0,
+                "ai_analysis": "AI analysis not available — API key not configured"
+            }
+
+        media_type = file.content_type or "image/jpeg"
+        image_b64 = base64.b64encode(contents).decode("utf-8")
+
+        prompt = (
+            "Analyze this image for flood risk assessment. "
+            "Consider factors like terrain and elevation, water bodies and drainage patterns, "
+            "vegetation and land use, infrastructure and buildings. "
+            f"Location context: {location or 'Not specified'}. "
+            "Provide a detailed risk assessment with: "
+            "1. Risk level (exactly one of: Low, Medium, High, or Very High) — state it clearly on its own line like 'Risk Level: High' "
+            "2. Key risk factors "
+            "3. Specific recommendations"
+        )
+
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1024,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": media_type,
+                                "data": image_b64,
+                            },
+                        },
+                        {"type": "text", "text": prompt},
                     ],
-                    "elevation": 0,  # Not available from image
-                    "distance_from_water": 0,  # Not available from image
-                    "ai_analysis": analysis
                 }
-            else:
-                # Fallback analysis without AI
-                return {
-                    "risk_level": "Medium",
-                    "description": f"Manual analysis of {file.filename}",
-                    "recommendations": [
-                        "AI analysis not available",
-                        "Consider professional assessment",
-                        "Check local flood maps"
-                    ],
-                    "elevation": 0,
-                    "distance_from_water": 0,
-                    "ai_analysis": "AI analysis not available - API key not configured"
-                }
-                
-        finally:
-            # Clean up temporary file
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-                
+            ],
+        )
+
+        analysis = message.content[0].text
+
+        risk_level = "Medium"
+        analysis_lower = analysis.lower()
+        if "very high" in analysis_lower:
+            risk_level = "Very High"
+        elif "risk level: high" in analysis_lower or "**high**" in analysis_lower:
+            risk_level = "High"
+        elif "risk level: low" in analysis_lower or "**low**" in analysis_lower:
+            risk_level = "Low"
+        elif "risk level: medium" in analysis_lower or "**medium**" in analysis_lower:
+            risk_level = "Medium"
+
+        return {
+            "risk_level": risk_level,
+            "description": f"AI analysis of {file.filename}",
+            "recommendations": [
+                "Review AI analysis results",
+                "Consider professional assessment",
+                "Check local flood maps",
+                "Monitor weather conditions"
+            ],
+            "elevation": 0,
+            "distance_from_water": 0,
+            "ai_analysis": analysis
+        }
+
+    except anthropic.APIError as e:
+        print(f"Anthropic API error: {e}")
+        raise HTTPException(status_code=502, detail=f"Anthropic API error: {str(e)}")
     except Exception as e:
+        print(f"Image analysis error: {e}")
         raise HTTPException(status_code=500, detail=f"Error analyzing image: {str(e)}")
 
 @router.get("/risk-factors")

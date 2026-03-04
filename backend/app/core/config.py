@@ -32,8 +32,9 @@ class Settings(BaseSettings):
     # Frontend settings
     frontend_base_url: str = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
     
-    # Google AI settings
+    # AI settings
     google_api_key: str = os.getenv("GOOGLE_API_KEY", "")
+    anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
     
     # Clerk settings
     clerk_secret_key: str = os.getenv("CLERK_SECRET_KEY", "")
