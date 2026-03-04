@@ -4,7 +4,7 @@
  * Single source of truth for all backend API calls
  */
 
-import { User, ApiResponse, AuthenticatedUser } from './types';
+import { User, ApiResponse, AuthenticatedUser } from "./types";
 
 // API Configuration
 const API_CONFIG = {
@@ -17,17 +17,17 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public statusCode: number,
-    public details?: string
+    public details?: string,
   ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
   }
 }
 
 export class NetworkError extends Error {
-  constructor(message: string = 'Network request failed') {
+  constructor(message: string = "Network request failed") {
     super(message);
-    this.name = 'NetworkError';
+    this.name = "NetworkError";
   }
 }
 
@@ -35,64 +35,63 @@ export class NetworkError extends Error {
 class HttpClient {
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<T> {
     const url = `${API_CONFIG.baseUrl}${endpoint}`;
-    
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
 
     try {
+      const isFormData = options.body instanceof FormData;
+      const headers: Record<string, string> = {
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
+        ...(options.headers as Record<string, string>),
+      };
+
       const response = await fetch(url, {
         ...options,
         signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
+        headers,
       });
 
       clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new ApiError(
-          `API request failed`,
-          response.status,
-          errorText
-        );
+        throw new ApiError(`API request failed`, response.status, errorText);
       }
 
       return await response.json();
     } catch (error) {
       clearTimeout(timeoutId);
-      
+
       if (error instanceof ApiError) {
         throw error;
       }
-      
+
       if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          throw new NetworkError('Request timeout');
+        if (error.name === "AbortError") {
+          throw new NetworkError("Request timeout");
         }
         throw new NetworkError(error.message);
       }
-      
-      throw new NetworkError('Unknown error occurred');
+
+      throw new NetworkError("Unknown error occurred");
     }
   }
 
   async get<T>(endpoint: string, headers?: Record<string, string>): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET', headers });
+    return this.request<T>(endpoint, { method: "GET", headers });
   }
 
   async post<T>(
     endpoint: string,
     data?: unknown,
-    headers?: Record<string, string>
+    headers?: Record<string, string>,
   ): Promise<T> {
     return this.request<T>(endpoint, {
-      method: 'POST',
+      method: "POST",
       body: data ? JSON.stringify(data) : undefined,
       headers,
     });
@@ -101,10 +100,10 @@ class HttpClient {
   async postFormData<T>(
     endpoint: string,
     formData: FormData,
-    headers?: Record<string, string>
+    headers?: Record<string, string>,
   ): Promise<T> {
     return this.request<T>(endpoint, {
-      method: 'POST',
+      method: "POST",
       body: formData,
       headers: {
         // Don't set Content-Type for FormData - let browser handle it
@@ -127,15 +126,12 @@ export class UserApiService {
     lastSignInAt?: string;
   }): Promise<User> {
     const response = await this.httpClient.post<ApiResponse<User>>(
-      '/auth/sync-user',
-      userData
+      "/auth/sync-user",
+      userData,
     );
 
     if (!response.success || !response.data) {
-      throw new ApiError(
-        response.error || 'Failed to sync user',
-        400
-      );
+      throw new ApiError(response.error || "Failed to sync user", 400);
     }
 
     return response.data;
@@ -143,21 +139,18 @@ export class UserApiService {
 
   async generateToken(
     clerkId: string,
-    expiresInMinutes?: number
+    expiresInMinutes?: number,
   ): Promise<AuthenticatedUser> {
     const response = await this.httpClient.post<ApiResponse<AuthenticatedUser>>(
-      '/auth/generate-token',
+      "/auth/generate-token",
       {
         clerkId,
         expiresInMinutes,
-      }
+      },
     );
 
     if (!response.success || !response.data) {
-      throw new ApiError(
-        response.error || 'Failed to generate token',
-        400
-      );
+      throw new ApiError(response.error || "Failed to generate token", 400);
     }
 
     return response.data;
@@ -165,12 +158,11 @@ export class UserApiService {
 
   async getExistingToken(authToken: string): Promise<AuthenticatedUser | null> {
     try {
-      const response = await this.httpClient.get<ApiResponse<AuthenticatedUser>>(
-        '/auth/token',
-        {
-          'Authorization': `Bearer ${authToken}`,
-        }
-      );
+      const response = await this.httpClient.get<
+        ApiResponse<AuthenticatedUser>
+      >("/auth/token", {
+        Authorization: `Bearer ${authToken}`,
+      });
 
       if (!response.success || !response.data) {
         return null;
@@ -188,8 +180,8 @@ export class UserApiService {
   async verifyToken(token: string): Promise<User | null> {
     try {
       const response = await this.httpClient.post<ApiResponse<{ user: User }>>(
-        '/auth/verify-token',
-        token
+        "/auth/verify-token",
+        token,
       );
 
       if (!response.success || !response.data) {
@@ -206,18 +198,12 @@ export class UserApiService {
   }
 
   async getCurrentUser(authToken: string): Promise<User> {
-    const response = await this.httpClient.get<ApiResponse<User>>(
-      '/auth/me',
-      {
-        'Authorization': `Bearer ${authToken}`,
-      }
-    );
+    const response = await this.httpClient.get<ApiResponse<User>>("/auth/me", {
+      Authorization: `Bearer ${authToken}`,
+    });
 
     if (!response.success || !response.data) {
-      throw new ApiError(
-        response.error || 'Failed to get user info',
-        401
-      );
+      throw new ApiError(response.error || "Failed to get user info", 401);
     }
 
     return response.data;
@@ -231,7 +217,7 @@ export class AnalysisApiService {
   async analyzeCoordinates(
     latitude: number,
     longitude: number,
-    authToken: string
+    authToken: string,
   ): Promise<{
     risk_level: string;
     description: string;
@@ -241,18 +227,18 @@ export class AnalysisApiService {
     ai_analysis: string;
   }> {
     return this.httpClient.post(
-      '/analyze/coordinates',
+      "/analyze/coordinates",
       { latitude, longitude },
       {
-        'Authorization': `Bearer ${authToken}`,
-      }
+        Authorization: `Bearer ${authToken}`,
+      },
     );
   }
 
   async analyzeImage(
     file: File,
     authToken: string,
-    location?: string
+    location?: string,
   ): Promise<{
     risk_level: string;
     description: string;
@@ -262,18 +248,14 @@ export class AnalysisApiService {
     ai_analysis: string;
   }> {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
     if (location) {
-      formData.append('location', location);
+      formData.append("location", location);
     }
 
-    return this.httpClient.postFormData(
-      '/analyze/image',
-      formData,
-      {
-        'Authorization': `Bearer ${authToken}`,
-      }
-    );
+    return this.httpClient.postFormData("/analyze/image", formData, {
+      Authorization: `Bearer ${authToken}`,
+    });
   }
 }
 
@@ -291,7 +273,7 @@ export class ApiService {
 
   // Health check
   async healthCheck(): Promise<{ status: string; service: string }> {
-    return this.httpClient.get('/health');
+    return this.httpClient.get("/health");
   }
 }
 

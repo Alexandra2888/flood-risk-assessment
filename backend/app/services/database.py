@@ -153,22 +153,40 @@ class DatabaseService:
             return None
 
     async def upsert_user(self, user_data: dict) -> User:
-        """Create or update user"""
-        existing_user = await self.get_user_by_clerk_id(user_data["clerkId"])
-        
-        if existing_user:
-            updated_user = await self.update_user(user_data["clerkId"], {
-                "email": user_data["email"],
-                "firstName": user_data.get("firstName"),
-                "lastName": user_data.get("lastName"),
-                "imageUrl": user_data.get("imageUrl"),
-                "lastSignInAt": user_data.get("lastSignInAt", datetime.utcnow().isoformat())
-            })
-            if not updated_user:
-                raise Exception("Failed to update user")
-            return updated_user
-        else:
-            return await self.create_user(user_data)
+        """Atomic create-or-update user using ON CONFLICT to avoid race conditions"""
+        user_id = f"user_{secrets.token_urlsafe(16)}"
+        now = datetime.utcnow().isoformat()
+        last_sign_in = user_data.get("lastSignInAt", now)
+
+        try:
+            async with aiosqlite.connect(self._db_path) as db:
+                db.row_factory = aiosqlite.Row
+                await db.execute("""
+                    INSERT INTO users (id, clerkId, email, firstName, lastName, imageUrl, createdAt, updatedAt, lastSignInAt)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(clerkId) DO UPDATE SET
+                        email = excluded.email,
+                        firstName = excluded.firstName,
+                        lastName = excluded.lastName,
+                        imageUrl = excluded.imageUrl,
+                        updatedAt = excluded.updatedAt,
+                        lastSignInAt = excluded.lastSignInAt
+                """, (
+                    user_id, user_data["clerkId"], user_data["email"],
+                    user_data.get("firstName"), user_data.get("lastName"),
+                    user_data.get("imageUrl"), now, now, last_sign_in
+                ))
+                await db.commit()
+
+                async with db.execute("SELECT * FROM users WHERE clerkId = ?", (user_data["clerkId"],)) as cursor:
+                    row = await cursor.fetchone()
+                    if row:
+                        return User(**dict(row))
+                    raise Exception("User not found after upsert")
+
+        except Exception as e:
+            logger.error(f"Failed to upsert user: {e}")
+            raise
 
     async def create_user_token(self, user_id: str, clerk_id: str, expires_in_minutes: int = 1440) -> UserToken:
         """Create authentication token"""
