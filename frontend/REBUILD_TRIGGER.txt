@@ -1,1 +1,1 @@
-# Force rebuild - Sun Aug 17 19:29:57 EEST 2025
+# Force rebuild - Tue Mar 04 2026 - Anthropic AI + deployment config
