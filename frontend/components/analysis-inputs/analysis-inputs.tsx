@@ -315,8 +315,8 @@ const AnalysisInputs = ({
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="coordinates" className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4">
+              <TabsContent value="coordinates" className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="latitude">Latitude</Label>
                     <Input
@@ -406,7 +406,7 @@ const AnalysisInputs = ({
                 </div>
               </TabsContent>
 
-              <TabsContent value="image" className="space-y-4 mt-4">
+              <TabsContent value="image" className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
                 <div className="space-y-4">
                   <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
                     <input

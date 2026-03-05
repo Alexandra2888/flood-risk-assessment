@@ -123,9 +123,9 @@ export default function FloodDetectionSystem() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       <Navbar />
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-6xl">
         <Header />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
           {/* Input Section */}
           
 
@@ -149,7 +149,7 @@ export default function FloodDetectionSystem() {
             />
             </>
           ) : (
-            <div className="col-span-2 flex flex-col justify-center items-center h-64">
+            <div className="col-span-1 lg:col-span-2 flex flex-col justify-center items-center h-48 sm:h-64">
               {isAuthLoading ? (
                 <div className="flex flex-col items-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
@@ -182,8 +182,8 @@ export default function FloodDetectionSystem() {
         </div>
 
         {floodRisk && isAuthenticated && (
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-slate-800 mb-4 text-center">
+          <div className="mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-2xl font-bold text-slate-800 mb-3 sm:mb-4 text-center">
               Risk Assessment Overview
             </h2>
             <Cards floodRisk={floodRisk} isLoading={isLoading} />
